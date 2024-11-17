@@ -13,15 +13,23 @@ wss.on('connection', function connection(ws) {
         if (data.event === 'stream-message') {
             console.log('Streamed message from Claude:', data.message);
         }
+        if (data.event === 'message-complete') {
+            console.log('Completed message from Claude:', data.message);
+        }
     });
 
     // Send a 'new-chat' event after 2 seconds
     setTimeout(() => {
         ws.send(JSON.stringify({ event: 'new-chat' }));
-    }, 2000);
+    }, 6000);
 
     // Send a 'send-user-message' event after 4 seconds
     setTimeout(() => {
         ws.send(JSON.stringify({ event: 'send-user-message', message: 'Hello, Claude!' }));
-    }, 4000);
+    }, 8000);
+
+    // Send a 'send-user-message' event after 4 seconds
+    setTimeout(() => {
+        ws.send(JSON.stringify({ event: 'send-user-message', message: 'Testing this interaction' }));
+    }, 14000);
 });
