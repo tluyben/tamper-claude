@@ -7,7 +7,7 @@ wss.on('connection', function connection(ws) {
 
     ws.on('message', function incoming(message) {
         const data = JSON.parse(message);
-        console.log('Received from client:', data);
+        //console.log('Received from client:', data);
 
         // Handle 'stream-message' events from the client
         if (data.event === 'stream-message') {
@@ -22,14 +22,23 @@ wss.on('connection', function connection(ws) {
     setTimeout(() => {
         ws.send(JSON.stringify({ event: 'new-chat' }));
     }, 6000);
+    
+	// Send a 'send-user-message' event after 4 seconds
+    setTimeout(() => {
+    //    ws.send(JSON.stringify({ event: 'send-user-message', message: 'hello' }));
+    }, 8000);
+    setTimeout(() => {
+        ws.send(JSON.stringify({ event: 'send-user-message', message: 'write fibonacci in c#' }));
+    }, 8000);
+
 
     // Send a 'send-user-message' event after 4 seconds
     setTimeout(() => {
-        ws.send(JSON.stringify({ event: 'send-user-message', message: 'Hello, Claude!' }));
+        //ws.send(JSON.stringify({ event: 'send-user-message', message: 'Write a tower defence game in pygame please' }));
     }, 8000);
 
     // Send a 'send-user-message' event after 4 seconds
     setTimeout(() => {
-        ws.send(JSON.stringify({ event: 'send-user-message', message: 'Testing this interaction' }));
-    }, 14000);
+    //    ws.send(JSON.stringify({ event: 'send-user-message', message: 'Please add better AI for the enemies' }));
+    }, 75000);
 });

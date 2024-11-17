@@ -36,6 +36,8 @@
 
     // **Declare and initialize lastSentMessages**
     const lastSentMessages = new Map();
+    const debounceTimers = new Map();
+    const lastUpdateTimes = new Map();
 
     function handleServerMessage(data) {
         switch (data.event) {
@@ -50,6 +52,7 @@
                 console.warn('Unknown event:', data.event);
         }
     }
+
 
     function startNewChat() {
         const startChatButton = document.querySelector('a[href="/new"]');
@@ -131,7 +134,7 @@
 
     let chatObserver;
 
-    function initializeObserver(chatContainer) {
+   /* function initializeObserver(chatContainer) {
         if (chatObserver) {
             chatObserver.disconnect();
             console.log('Disconnected previous MutationObserver');
@@ -165,12 +168,67 @@
         });
 
         console.log('Started observing chat messages');
+    }*/
+
+/*function processMessageNode(node) {
+    // Check for assistant message
+    let messageDiv = node.querySelector('div.font-claude-message');
+    if (messageDiv) {
+        // Expand code blocks if necessary
+        expandAllCodeBlocks(messageDiv);
+
+        // Generate or retrieve a unique message ID
+        let messageId = messageDiv.dataset.messageId;
+        if (!messageId) {
+            messageId = 'message-' + Math.random().toString(36).substr(2, 9);
+            messageDiv.dataset.messageId = messageId;
+        }
+
+        const messageText = extractMessageText(messageDiv);
+
+        const lastSentText = lastSentMessages.get(messageId) || '';
+
+        if (messageText !== lastSentText) {
+            lastSentMessages.set(messageId, messageText);
+
+            console.log('New message from Claude:', messageText);
+
+            if (tmSocket.readyState === WebSocket.OPEN) {
+                tmSocket.send(JSON.stringify({ event: 'stream-message', message: messageText }));
+                console.log('Sent message to server:', messageText);
+            } else {
+                console.error('WebSocket is not open');
+            }
+        }
+
+        // Check if the assistant has finished responding
+        if (isMessageComplete()) {
+            console.log('Assistant message is complete.');
+
+            // Send a final event indicating completion
+            tmSocket.send(JSON.stringify({ event: 'message-complete', message: messageText }));
+
+            // Clean up stored message
+            lastSentMessages.delete(messageId);
+        }
+
+        return;
     }
 
-    function processMessageNode(node) {
-        // Check for assistant message
-        let messageDiv = node.querySelector('div.font-claude-message');
+    // Handle user messages if needed
+}*/
+        /*function processMessageNode(node) {
+        // Check if node is a text node
+        if (node.nodeType === Node.TEXT_NODE) {
+            node = node.parentNode;
+        }
+
+        // Find the message container
+        let messageDiv = node.closest('div.font-claude-message');
         if (messageDiv) {
+            // Expand code blocks if necessary
+            expandAllCodeBlocks(messageDiv);
+
             // Generate or retrieve a unique message ID
             let messageId = messageDiv.dataset.messageId;
             if (!messageId) {
@@ -182,47 +240,345 @@
 
             const lastSentText = lastSentMessages.get(messageId) || '';
 
-            if (messageText !== lastSentText) {
-                lastSentMessages.set(messageId, messageText);
+            const DEBOUNCE_DELAY = 200; // milliseconds
 
-                console.log('New message from Claude:', messageText);
+            // Clear any existing timer for this messageId
+            clearTimeout(debounceTimers.get(messageId));
 
-                if (tmSocket.readyState === WebSocket.OPEN) {
-                    tmSocket.send(JSON.stringify({ event: 'stream-message', message: messageText }));
-                    console.log('Sent message to server:', messageText);
-                } else {
-                    console.error('WebSocket is not open');
+            // Set a new debounce timer
+            const timer = setTimeout(() => {
+                // Send the message after the delay
+                if (messageText !== lastSentText) {
+                    lastSentMessages.set(messageId, messageText);
+
+                    console.log('New message from Claude:', messageText);
+
+                    if (tmSocket.readyState === WebSocket.OPEN) {
+                        tmSocket.send(JSON.stringify({ event: 'stream-message', message: messageText }));
+                        console.log('Sent message to server:', messageText);
+                    } else {
+                        console.error('WebSocket is not open');
+                    }
                 }
-            }
 
-            // Check if the assistant has finished responding
-            if (isMessageComplete()) {
-                console.log('Assistant message is complete.');
+                // Check if the assistant has finished responding
+                if (isMessageComplete()) {
+                    console.log('Assistant message is complete.');
 
-                // Send a final event indicating completion
-                tmSocket.send(JSON.stringify({ event: 'message-complete', message: messageText }));
+                    // Send a final event indicating completion
+                    tmSocket.send(JSON.stringify({ event: 'message-complete', message: messageText }));
 
-                // Clean up stored message
-                lastSentMessages.delete(messageId);
-            }
+                    // Clean up stored message and timer
+                    lastSentMessages.delete(messageId);
+                    debounceTimers.delete(messageId);
+                }
+            }, DEBOUNCE_DELAY);
+
+            debounceTimers.set(messageId, timer);
 
             return;
         }
 
         // Handle user messages if needed
+    }*/
+
+   /* function processMessageNode(node) {
+    // Check if node is a text node
+    if (node.nodeType === Node.TEXT_NODE) {
+        node = node.parentNode;
     }
 
-    function isMessageComplete() {
-        // Check if the "Stop Response" button is present
-        const stopButton = document.querySelector('button[aria-label="Stop Response"]');
-        return !stopButton;
+    let messageDiv = node.closest('div.font-claude-message');
+    if (messageDiv) {
+        // Expand code blocks only once
+        if (!messageDiv.dataset.codeBlocksExpanded) {
+            expandAllCodeBlocks(messageDiv);
+            messageDiv.dataset.codeBlocksExpanded = 'true';
+        }
+
+        // Generate or retrieve a unique message ID
+        let messageId = messageDiv.dataset.messageId;
+        if (!messageId) {
+            messageId = 'message-' + Math.random().toString(36).substr(2, 9);
+            messageDiv.dataset.messageId = messageId;
+        }
+
+        const messageText = extractMessageText(messageDiv);
+        const lastSentText = lastSentMessages.get(messageId) || '';
+
+        if (messageText !== lastSentText) {
+            lastSentMessages.set(messageId, messageText);
+
+            if (tmSocket.readyState === WebSocket.OPEN) {
+                tmSocket.send(JSON.stringify({ event: 'stream-message', message: messageText }));
+            }
+        }
+
+        // Check if the assistant has finished responding
+        const isStreamingElement = messageDiv.closest('[data-is-streaming]');
+        const isStreaming = isStreamingElement ? isStreamingElement.getAttribute('data-is-streaming') : 'false';
+
+        if (isStreaming === 'false' && !messageDiv.dataset.messageComplete) {
+            tmSocket.send(JSON.stringify({ event: 'message-complete', message: messageText }));
+            lastSentMessages.delete(messageId);
+            debounceTimers.delete(messageId);
+            messageDiv.dataset.messageComplete = 'true';
+        }
+
+        return;
     }
 
-    function extractMessageText(messageDiv) {
-        // Extract the text content from the message div
-        const messageText = messageDiv.innerText.trim();
+    // Handle user messages if needed
+}*/
+   /*function processMessageNode(node) {
+    // Check if node is a text node
+    if (node.nodeType === Node.TEXT_NODE) {
+        node = node.parentNode;
+    }
+
+    let messageDiv = node.closest('div.font-claude-message');
+    if (messageDiv) {
+        // Expand code blocks only once
+        if (!messageDiv.dataset.codeBlocksExpanded) {
+            expandAllCodeBlocks(messageDiv);
+            messageDiv.dataset.codeBlocksExpanded = 'true';
+        }
+
+        // Generate or retrieve a unique message ID
+        let messageId = messageDiv.dataset.messageId;
+        if (!messageId) {
+            messageId = 'message-' + Math.random().toString(36).substr(2, 9);
+            messageDiv.dataset.messageId = messageId;
+        }
+
+        const messageText = extractMessageText(messageDiv);
+        const lastSentText = lastSentMessages.get(messageId) || '';
+
+        if (messageText !== lastSentText) {
+            lastSentMessages.set(messageId, messageText);
+
+            if (tmSocket.readyState === WebSocket.OPEN) {
+                tmSocket.send(JSON.stringify({ event: 'stream-message', message: messageText }));
+            }
+        }
+
+        // Check if the assistant has finished responding
+        if (isMessageComplete() && !messageDiv.dataset.messageComplete) {
+            tmSocket.send(JSON.stringify({ event: 'message-complete', message: messageText }));
+            lastSentMessages.delete(messageId);
+            debounceTimers.delete(messageId);
+            messageDiv.dataset.messageComplete = 'true';
+        }
+
+        return;
+    }
+
+    // Handle user messages if needed
+}*/
+function processMessageNode(node) {
+    // Check if node is a text node
+    if (node.nodeType === Node.TEXT_NODE) {
+        node = node.parentNode;
+    }
+
+    let messageDiv = node.closest('div.font-claude-message');
+    if (messageDiv) {
+        // Expand code blocks only once
+        if (!messageDiv.dataset.codeBlocksExpanded) {
+            expandAllCodeBlocks(messageDiv);
+            messageDiv.dataset.codeBlocksExpanded = 'true';
+        }
+
+        // Generate or retrieve a unique message ID
+        let messageId = messageDiv.dataset.messageId;
+        if (!messageId) {
+            messageId = 'message-' + Math.random().toString(36).substr(2, 9);
+            messageDiv.dataset.messageId = messageId;
+        }
+
+        const messageText = extractMessageText(messageDiv);
+        const lastSentText = lastSentMessages.get(messageId) || '';
+
+        if (messageText !== lastSentText) {
+            lastSentMessages.set(messageId, messageText);
+
+            if (tmSocket.readyState === WebSocket.OPEN) {
+                tmSocket.send(JSON.stringify({ event: 'stream-message', message: messageText }));
+            }
+        }
+
+        // Update last update time
+        lastUpdateTimes.set(messageId, Date.now());
+
+        // Clear existing completion timer
+        clearTimeout(debounceTimers.get(messageId));
+
+        // Start a new completion timer
+        const COMPLETION_DELAY = 1000; // 1 second
+        const timer = setTimeout(() => {
+            const now = Date.now();
+            const lastUpdateTime = lastUpdateTimes.get(messageId) || 0;
+            if (now - lastUpdateTime >= COMPLETION_DELAY) {
+                // No updates in the last COMPLETION_DELAY milliseconds
+                if (!messageDiv.dataset.messageComplete) {
+                    tmSocket.send(JSON.stringify({ event: 'message-complete', message: messageText }));
+                    lastSentMessages.delete(messageId);
+                    lastUpdateTimes.delete(messageId);
+                    messageDiv.dataset.messageComplete = 'true';
+
+                    // Clear the debounce timer
+                    debounceTimers.delete(messageId);
+                }
+            }
+        }, COMPLETION_DELAY);
+
+        debounceTimers.set(messageId, timer);
+
+        return;
+    }
+
+    // Handle user messages if needed
+}
+
+function extractMessageText(messageDiv) {
+    const clone = messageDiv.cloneNode(true);
+
+    const unwantedElements = clone.querySelectorAll('div.text-text-400.line-clamp-1.text-xs.min-h-4');
+    unwantedElements.forEach(elem => elem.remove());
+
+    let messageText = '';
+
+    const elements = clone.querySelectorAll('p, li, pre');
+    elements.forEach(elem => {
+        if (elem.tagName === 'PRE') {
+            const codeElem = elem.querySelector('code');
+            if (codeElem) {
+                const codeLanguage = codeElem.className || '';
+                const codeContent = codeElem.innerText;
+                messageText += `\n\`\`\`${codeLanguage}\n${codeContent}\n\`\`\`\n`;
+            } else {
+                messageText += `\n\`\`\`\n${elem.innerText}\n\`\`\`\n`;
+            }
+        } else {
+            messageText += '\n' + elem.innerText;
+        }
+    });
+
+    return messageText.trim();
+}
+
+    function expandAllCodeBlocks(messageDiv) {
+        const expandButtons = messageDiv.querySelectorAll('div.text-text-400.line-clamp-1.text-xs.min-h-4');
+        expandButtons.forEach(button => {
+            button.click();
+        });
+    }
+
+    /*function extractMessageText(messageDiv) {
+        // Clone the messageDiv to avoid modifying the original
+        const clone = messageDiv.cloneNode(true);
+
+        // Expand any code blocks (if not already expanded)
+        expandAllCodeBlocks(clone);
+
+        // Remove any 'Click to open code' elements
+        const unwantedElements = clone.querySelectorAll('div.text-text-400.line-clamp-1.text-xs.min-h-4');
+        unwantedElements.forEach(elem => elem.remove());
+
+        // Initialize message text
+        let messageText = '';
+
+        // Extract content, including code blocks
+        const elements = clone.querySelectorAll('p, li, pre, code, div');
+        elements.forEach(elem => {
+            if (elem.tagName === 'PRE' || elem.tagName === 'CODE') {
+                // Handle code blocks
+                messageText += '\n```' + (elem.className || '') + '\n' + elem.innerText + '\n```\n';
+            } else {
+                // Regular text
+                messageText += '\n' + elem.innerText;
+            }
+        });
+
+        messageText = messageText.trim();
+
         return messageText;
+    }*/
+
+
+function isMessageComplete() {
+    // Check if the "Stop Response" button is present
+    const stopButton = document.querySelector('button[aria-label="Stop Response"]');
+    return !stopButton;
+}
+
+function initializeObserver(chatContainer) {
+    if (chatObserver) {
+        chatObserver.disconnect();
+        console.log('Disconnected previous MutationObserver');
     }
+
+    console.log('Initializing MutationObserver on chat container:', chatContainer);
+    chatObserver = new MutationObserver((mutationsList) => {
+        for (const mutation of mutationsList) {
+            if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                processMessageNode(mutation.target);
+            }
+        }
+    });
+
+    chatObserver.observe(chatContainer, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: false,
+    });
+
+    console.log('Started observing chat messages');
+}
+    /*
+    function isMessageComplete() {
+        // Check if the LLM is still streaming
+        const streamingIndicator = document.querySelector('[data-is-streaming="true"]');
+        return !streamingIndicator;
+    }
+
+
+function initializeObserver(chatContainer) {
+    if (chatObserver) {
+        chatObserver.disconnect();
+        console.log('Disconnected previous MutationObserver');
+    }
+
+    console.log('Initializing MutationObserver on chat container:', chatContainer);
+    chatObserver = new MutationObserver((mutationsList) => {
+        for (const mutation of mutationsList) {
+            if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                processMessageNode(mutation.target);
+            } else if (mutation.type === 'attributes') {
+                // Check if data-is-streaming changed
+                const target = mutation.target;
+                if (mutation.attributeName === 'data-is-streaming') {
+                    const isStreaming = target.getAttribute('data-is-streaming');
+                    if (isStreaming === 'false') {
+                        // Message is complete
+                        processMessageNode(target);
+                    }
+                }
+            }
+        }
+    });
+
+    chatObserver.observe(chatContainer, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['data-is-streaming'],
+    });
+
+    console.log('Started observing chat messages');
+}*/
 
     function waitForElement(selector, timeout = 10000) {
         return new Promise((resolve, reject) => {
